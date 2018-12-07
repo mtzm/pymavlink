@@ -138,39 +138,64 @@ ${{fields:    ${cxx_type} ${name}; /*< ${units} ${description} */
 }}
 
 
-    inline std::string get_name(void) const override
+    /*inline std::string get_name(void) const override
     {
             return NAME;
-    }
+    }*/
 
     inline Info get_message_info(void) const override
     {
             return { MSG_ID, LENGTH, MIN_LENGTH, CRC_EXTRA };
     }
-
+/*
     inline std::string to_yaml(void) const override
     {
         std::stringstream ss;
-
         ss << NAME << ":" << std::endl;
 ${{fields:        ${to_yaml_code}
 }}
 
         return ss.str();
-    }
+    }*/
 
     inline void serialize(mavlink::MsgMap &map) const override
     {
         map.reset(MSG_ID, LENGTH);
 
-${{ordered_fields:        map << ${ser_name};${ser_whitespace}// offset: ${wire_offset}
+${{ordered_fields:        map << (${type}&)${ser_name};${ser_whitespace}// offset: ${wire_offset}
 }}
     }
 
     inline void deserialize(mavlink::MsgMap &map) override
     {
-${{ordered_fields:        map >> ${name};${ser_whitespace}// offset: ${wire_offset}
+${{ordered_fields:        map >> (${type}&)${name};${ser_whitespace}// offset: ${wire_offset}
 }}
+    }
+    
+    ${name}()
+    {
+    }
+    
+    ${name}(${{arg_fields: ${cxx_type} ${name},}}) :
+        ${{arg_fields: ${name}(${name}),}}
+    {
+    }
+    
+    ${name}( const mavlink::mavlink_message_t &message)
+    {
+        decode(message);
+    }
+
+    inline void decode( const mavlink::mavlink_message_t &message)
+    {
+        mavlink::MsgMap map(&message);
+        deserialize(map);
+    }
+    inline void encode(uint8_t system_id, uint8_t component_id, mavlink::mavlink_message_t &message) const
+    {
+        mavlink::MsgMap map(message);
+        serialize(map);
+        mavlink::mavlink_finalize_message(&message, system_id, component_id, MIN_LENGTH, LENGTH, CRC_EXTRA);
     }
 };
 
@@ -389,6 +414,12 @@ def generate_one(basename, xml):
 
                     f.cxx_test_value = '{{ %s }}' % ', '.join([str(v) for v in f.test_value])
                     f.c_test_value = '{ %s }' % ', '.join([str(v) for v in f.test_value])
+            elif f.enum:
+                f.cxx_type = f.enum
+                f.to_yaml_code = """ss << "  %s: " << (%s)%s << std::endl;""" % (f.name, f.type, f.name)
+                f.test_value = 1
+                f.cxx_test_value = f.test_value
+                f.c_test_value = f.cxx_test_value
             else:
                 f.cxx_type = f.type
                 f.to_yaml_code = """ss << "  %s: " << %s%s << std::endl;""" % (f.name, to_yaml_cast, f.name)
