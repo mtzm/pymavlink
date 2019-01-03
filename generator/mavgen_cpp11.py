@@ -162,13 +162,13 @@ ${{fields:        ${to_yaml_code}
     {
         map.reset(MSG_ID, LENGTH);
 
-${{ordered_fields:        map << (${type}&)${ser_name};${ser_whitespace}// offset: ${wire_offset}
+${{ordered_fields:        map << ${transmission_casting}(${ser_name});${ser_whitespace}// offset: ${wire_offset}
 }}
     }
 
     inline void deserialize(mavlink::MsgMap &map) override
     {
-${{ordered_fields:        map >> (${type}&)${name};${ser_whitespace}// offset: ${wire_offset}
+${{ordered_fields:        map >> ${transmission_casting}(${name});${ser_whitespace}// offset: ${wire_offset}
 }}
     }
     
@@ -399,6 +399,7 @@ def generate_one(basename, xml):
 
             if f.array_length != 0:
                 f.cxx_type = 'std::array<%s, %s>' % (f.type, f.array_length)
+                f.transmission_casting = ""
 
                 # XXX sometime test_value is > 127 for int8_t, monkeypatch
                 if f.type == 'int8_t':
@@ -416,12 +417,14 @@ def generate_one(basename, xml):
                     f.c_test_value = '{ %s }' % ', '.join([str(v) for v in f.test_value])
             elif f.enum:
                 f.cxx_type = f.enum
+                f.transmission_casting = '%s&' % (f.type)
                 f.to_yaml_code = """ss << "  %s: " << (%s)%s << std::endl;""" % (f.name, f.type, f.name)
                 f.test_value = 1
                 f.cxx_test_value = f.test_value
                 f.c_test_value = f.cxx_test_value
             else:
                 f.cxx_type = f.type
+                f.transmission_casting = ""
                 f.to_yaml_code = """ss << "  %s: " << %s%s << std::endl;""" % (f.name, to_yaml_cast, f.name)
 
                 # XXX sometime test_value is > 127 for int8_t, monkeypatch
