@@ -162,13 +162,13 @@ ${{fields:        ${to_yaml_code}
     {
         map.reset(MSG_ID, LENGTH);
 
-${{ordered_fields:        map << ${transmission_casting}(${ser_name});${ser_whitespace}// offset: ${wire_offset}
+${{ordered_fields:        map << ${transmission_casting}${ser_name};${ser_whitespace}// offset: ${wire_offset}
 }}
     }
 
     inline void deserialize(mavlink::MsgMap &map) override
     {
-${{ordered_fields:        map >> ${transmission_casting}(${name});${ser_whitespace}// offset: ${wire_offset}
+${{ordered_fields:        map >> ${transmission_casting}${name};${ser_whitespace}// offset: ${wire_offset}
 }}
     }
     
@@ -196,6 +196,16 @@ ${{ordered_fields:        map >> ${transmission_casting}(${name});${ser_whitespa
         mavlink::MsgMap map(message);
         serialize(map);
         mavlink::mavlink_finalize_message(&message, system_id, component_id, MIN_LENGTH, LENGTH, CRC_EXTRA);
+    }
+    
+    bool operator==(const ${name}& other )
+    {
+        return${{fields: ${name}==other.${name}
+            &&}} true;
+    }
+    bool operator !=(const ${name}& other)
+    {
+        return !(operator ==(other));
     }
 };
 
@@ -417,7 +427,7 @@ def generate_one(basename, xml):
                     f.c_test_value = '{ %s }' % ', '.join([str(v) for v in f.test_value])
             elif f.enum:
                 f.cxx_type = f.enum
-                f.transmission_casting = '%s&' % (f.type)
+                f.transmission_casting = '(%s&)' % (f.type)
                 f.to_yaml_code = """ss << "  %s: " << (%s)%s << std::endl;""" % (f.name, f.type, f.name)
                 f.test_value = 1
                 f.cxx_test_value = f.test_value
