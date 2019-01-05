@@ -178,6 +178,8 @@ class MAVXML(object):
         self.parse_time = time.strftime("%a %b %d %Y")
         self.version = 2
         self.include = []
+        self.systemenum = "uint8_t"
+        self.componentenum = "uint8_t"
         self.wire_protocol_version = wire_protocol_version
 
         # setup the protocol features for the requested protocol version
@@ -282,6 +284,10 @@ class MAVXML(object):
                 self.version = int(data)
             elif in_element == "mavlink.include":
                 self.include.append(data)
+            elif in_element == "mavlink.systemenum":
+                self.systemenum = data
+            elif in_element == "mavlink.componentenum":
+                self.componentenum = data
 
         f = open(filename, mode='rb')
         p = xml.parsers.expat.ParserCreate()

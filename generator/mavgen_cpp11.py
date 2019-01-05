@@ -94,6 +94,15 @@ constexpr auto ${enum_end_name} = ${enum_end_value};
 }}
 
 
+typedef ${systemenum} SYSTEM_ID_TYPE;
+typedef ${componentenum} COMPONENT_ID_TYPE;
+
+struct  ${basename}_message : public mavlink_message_t
+{
+    constexpr SYSTEM_ID_TYPE system() { return static_cast<SYSTEM_ID_TYPE>(sysid); }
+    constexpr COMPONENT_ID_TYPE component() { return static_cast<COMPONENT_ID_TYPE>(compid); }
+};
+
 } // namespace ${basename}
 } // namespace mavlink
 
@@ -191,11 +200,11 @@ ${{ordered_fields:        map >> ${transmission_casting}${name};${ser_whitespace
         mavlink::MsgMap map(&message);
         deserialize(map);
     }
-    inline void encode(uint8_t system_id, uint8_t component_id, mavlink::mavlink_message_t &message) const
+    inline void encode(SYSTEM_ID_TYPE system_id, COMPONENT_ID_TYPE component_id, mavlink::mavlink_message_t &message) const
     {
         mavlink::MsgMap map(message);
         serialize(map);
-        mavlink::mavlink_finalize_message(&message, system_id, component_id, MIN_LENGTH, LENGTH, CRC_EXTRA);
+        mavlink::mavlink_finalize_message(&message, static_cast<uint8_t>(system_id), static_cast<uint8_t>(component_id), MIN_LENGTH, LENGTH, CRC_EXTRA);
     }
     
     bool operator==(const ${name}& other )
@@ -481,8 +490,11 @@ def generate_one(basename, xml):
             else:
                 e.enum_end_name = f.name
                 e.enum_end_value = f.value
-
-        e.cxx_underlying_type = ' : ' + underlying_type.type if underlying_type else ''
+        
+        if xml.systemenum == e.name or xml.componentenum == e.name:
+            e.cxx_underlying_type = ' : uint8_t'
+        else:
+            e.cxx_underlying_type = ' : ' + underlying_type.type if underlying_type else ''
 
     generate_main_hpp(directory, xml)
     for m in xml.message:
