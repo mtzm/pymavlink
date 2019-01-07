@@ -249,9 +249,18 @@ using namespace mavlink;
 #include "mavlink.h"
 #endif
 
+template <size_t size>
+std::array<char,size> to_char_array( const char (&arr)[size])
+{
+    std::array<char,size> std_arr;
+    std::copy(std::begin(arr), std::end(arr), std::begin(std_arr));
+    return std_arr;
+}
+
 ${{message:
 TEST(${dialect_name}, ${name})
 {
+    using namespace mavlink::${dialect_name};
     mavlink::mavlink_message_t msg;
     mavlink::MsgMap map1(msg);
     mavlink::MsgMap map2(msg);
@@ -443,6 +452,10 @@ def generate_one(basename, xml):
                 f.transmission_casting = '(%s&)' % (f.type)
                 f.to_yaml_code = """ss << "  %s: " << (%s)%s << std::endl;""" % (f.name, f.type, f.name)
                 f.test_value = 1
+                for e in xml.enum:
+                    if e.name == f.enum:
+                        f.test_value = '(%s::%s)' % (e.name,enum_remove_prefix(e.name, e.entry[0].name))
+                
                 f.cxx_test_value = f.test_value
                 f.c_test_value = f.cxx_test_value
             else:
