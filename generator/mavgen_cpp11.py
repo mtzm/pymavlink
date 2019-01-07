@@ -60,6 +60,7 @@ def generate_main_hpp(directory, xml):
 #include <array>
 #include <cstdint>
 #include <sstream>
+#include <map>
 
 #ifndef MAVLINK_STX
 #define MAVLINK_STX ${protocol_marker}
@@ -93,6 +94,9 @@ ${{entry_flt:    ${name_trim}=${value}, /* ${description} |${{param:${descriptio
 constexpr auto ${enum_end_name} = ${enum_end_value};
 }}
 
+const std::map<msgid_t, std::string> MESSAGE_NAMES = { ${{message:
+    {${id}, "${name}"},}}
+};
 
 typedef ${systemenum} SYSTEM_ID_TYPE;
 typedef ${componentenum} COMPONENT_ID_TYPE;

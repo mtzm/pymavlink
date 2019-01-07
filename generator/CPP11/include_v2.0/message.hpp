@@ -24,6 +24,7 @@ namespace mavlink {
  * @returns nullptr  if message is unknown
  */
 const mavlink_msg_entry_t *mavlink_get_msg_entry(uint32_t msgid);
+std::string get_msg_name(uint32_t msgid);
 
 } // namespace mavlink
 
