@@ -93,10 +93,11 @@ ${{entry_flt:    ${name_trim}=${value}, /* ${description} |${{param:${descriptio
 //! ${name} ENUM_END
 constexpr auto ${enum_end_name} = ${enum_end_value};
 }}
-
+#ifdef MAVLINK_USE_MESSAGE_INFO
 const std::map<msgid_t, std::string> MESSAGE_NAMES = { ${{message:
     {${id}, "${name}"},}}
 };
+#endif
 
 typedef ${systemenum} SYSTEM_ID_TYPE;
 typedef ${componentenum} COMPONENT_ID_TYPE;
