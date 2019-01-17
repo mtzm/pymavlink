@@ -104,8 +104,8 @@ typedef ${componentenum} COMPONENT_ID_TYPE;
 
 struct  ${basename}_message : public mavlink_message_t
 {
-    constexpr SYSTEM_ID_TYPE system() { return static_cast<SYSTEM_ID_TYPE>(sysid); }
-    constexpr COMPONENT_ID_TYPE component() { return static_cast<COMPONENT_ID_TYPE>(compid); }
+    constexpr SYSTEM_ID_TYPE system() const { return static_cast<SYSTEM_ID_TYPE>(sysid); }
+    constexpr COMPONENT_ID_TYPE component() const { return static_cast<COMPONENT_ID_TYPE>(compid); }
 };
 
 } // namespace ${basename}
