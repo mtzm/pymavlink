@@ -62,6 +62,7 @@ def generate_main_hpp(directory, xml):
 #include <array>
 #include <cstdint>
 #include <sstream>
+#include <map>
 
 #ifndef MAVLINK_STX
 #define MAVLINK_STX ${protocol_marker}
@@ -94,7 +95,20 @@ ${{entry_flt:    ${name_trim}=${value}, /* ${description} |${{param:${descriptio
 //! ${name} ENUM_END
 constexpr auto ${enum_end_name} = ${enum_end_value};
 }}
+#ifdef MAVLINK_USE_MESSAGE_INFO
+const std::map<msgid_t, std::string> MESSAGE_NAMES = { ${{message:
+    {${id}, "${name}"},}}
+};
+#endif
 
+typedef ${systemenum} SYSTEM_ID_TYPE;
+typedef ${componentenum} COMPONENT_ID_TYPE;
+
+struct  ${basename}_message : public mavlink_message_t
+{
+    constexpr SYSTEM_ID_TYPE system() const { return static_cast<SYSTEM_ID_TYPE>(sysid); }
+    constexpr COMPONENT_ID_TYPE component() const { return static_cast<COMPONENT_ID_TYPE>(compid); }
+};
 
 } // namespace ${basename}
 } // namespace mavlink
@@ -140,39 +154,74 @@ ${{fields:    ${cxx_type} ${name}; /*< ${units} ${description} */
 }}
 
 
-    inline std::string get_name(void) const override
+    /*inline std::string get_name(void) const override
     {
             return NAME;
-    }
+    }*/
 
     inline Info get_message_info(void) const override
     {
             return { MSG_ID, LENGTH, MIN_LENGTH, CRC_EXTRA };
     }
-
+/*
     inline std::string to_yaml(void) const override
     {
         std::stringstream ss;
-
         ss << NAME << ":" << std::endl;
 ${{fields:        ${to_yaml_code}
 }}
 
         return ss.str();
-    }
+    }*/
 
     inline void serialize(mavlink::MsgMap &map) const override
     {
         map.reset(MSG_ID, LENGTH);
 
-${{ordered_fields:        map << ${ser_name};${ser_whitespace}// offset: ${wire_offset}
+${{ordered_fields:        map << ${transmission_casting}${ser_name};${ser_whitespace}// offset: ${wire_offset}
 }}
     }
 
     inline void deserialize(mavlink::MsgMap &map) override
     {
-${{ordered_fields:        map >> ${name};${ser_whitespace}// offset: ${wire_offset}
+${{ordered_fields:        map >> ${transmission_casting}${name};${ser_whitespace}// offset: ${wire_offset}
 }}
+    }
+    
+    ${name}()
+    {
+    }
+    
+    ${name}(${{arg_fields: ${cxx_type} ${name},}}) :
+        ${{arg_fields: ${name}(${name}),}}
+    {
+    }
+    
+    ${name}( const mavlink::mavlink_message_t &message)
+    {
+        decode(message);
+    }
+
+    inline void decode( const mavlink::mavlink_message_t &message)
+    {
+        mavlink::MsgMap map(&message);
+        deserialize(map);
+    }
+    inline void encode(SYSTEM_ID_TYPE system_id, COMPONENT_ID_TYPE component_id, mavlink::mavlink_message_t &message) const
+    {
+        mavlink::MsgMap map(message);
+        serialize(map);
+        mavlink::mavlink_finalize_message(&message, static_cast<uint8_t>(system_id), static_cast<uint8_t>(component_id), MIN_LENGTH, LENGTH, CRC_EXTRA);
+    }
+    
+    bool operator==(const ${name}& other )
+    {
+        return${{fields: ${name}==other.${name}
+            &&}} true;
+    }
+    bool operator !=(const ${name}& other)
+    {
+        return !(operator ==(other));
     }
 };
 
@@ -203,9 +252,18 @@ using namespace mavlink;
 #include "mavlink.h"
 #endif
 
+template <size_t size>
+std::array<char,size> to_char_array( const char (&arr)[size])
+{
+    std::array<char,size> std_arr;
+    std::copy(std::begin(arr), std::end(arr), std::begin(std_arr));
+    return std_arr;
+}
+
 ${{message:
 TEST(${dialect_name}, ${name})
 {
+    using namespace mavlink::${dialect_name};
     mavlink::mavlink_message_t msg;
     mavlink::MsgMap map1(msg);
     mavlink::MsgMap map2(msg);
@@ -377,6 +435,7 @@ def generate_one(basename, xml):
 
             if f.array_length != 0:
                 f.cxx_type = 'std::array<%s, %s>' % (f.type, f.array_length)
+                f.transmission_casting = ""
 
                 # XXX sometime test_value is > 127 for int8_t, monkeypatch
                 if f.type == 'int8_t':
@@ -392,8 +451,20 @@ def generate_one(basename, xml):
 
                     f.cxx_test_value = '{{ %s }}' % ', '.join([str(v) for v in f.test_value])
                     f.c_test_value = '{ %s }' % ', '.join([str(v) for v in f.test_value])
+            elif f.enum:
+                f.cxx_type = f.enum
+                f.transmission_casting = '(%s&)' % (f.type)
+                f.to_yaml_code = """ss << "  %s: " << (%s)%s << std::endl;""" % (f.name, f.type, f.name)
+                f.test_value = 1
+                for e in xml.enum:
+                    if e.name == f.enum:
+                        f.test_value = '(%s::%s)' % (e.name,enum_remove_prefix(e.name, e.entry[0].name))
+                
+                f.cxx_test_value = f.test_value
+                f.c_test_value = f.cxx_test_value
             else:
                 f.cxx_type = f.type
+                f.transmission_casting = ""
                 f.to_yaml_code = """ss << "  %s: " << %s%s << std::endl;""" % (f.name, to_yaml_cast, f.name)
 
                 # XXX sometime test_value is > 127 for int8_t, monkeypatch
@@ -440,8 +511,11 @@ def generate_one(basename, xml):
             else:
                 e.enum_end_name = f.name
                 e.enum_end_value = f.value
-
-        e.cxx_underlying_type = ' : ' + underlying_type.type if underlying_type else ''
+        
+        if xml.systemenum == e.name or xml.componentenum == e.name:
+            e.cxx_underlying_type = ' : uint8_t'
+        else:
+            e.cxx_underlying_type = ' : ' + underlying_type.type if underlying_type else ''
 
     generate_main_hpp(directory, xml)
     for m in xml.message:

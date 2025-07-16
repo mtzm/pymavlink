@@ -28,6 +28,10 @@ namespace mavlink {
  * @returns nullptr  if message is unknown
  */
 const mavlink_msg_entry_t *mavlink_get_msg_entry(uint32_t msgid);
+#ifdef MAVLINK_USE_MESSAGE_INFO
+std::string get_msg_name(uint32_t msgid);
+#endif
+
 } // namespace mavlink
 
 #include "mavlink_helpers.h"
@@ -59,7 +63,7 @@ struct Message {
 	/**
 	 * Get NAME constant. Helper for overloaded class access.
 	 */
-	virtual std::string get_name(void) const = 0;
+	//virtual std::string get_name(void) const = 0;
 
 	/**
 	 * Get info needed for mavlink_finalize_message_xxx()
@@ -69,7 +73,7 @@ struct Message {
 	/**
 	 * Make YAML-string from message content.
 	 */
-	virtual std::string to_yaml(void) const = 0;
+	//virtual std::string to_yaml(void) const = 0;
 
 	/**
 	 * Serialize message.
@@ -86,64 +90,5 @@ struct Message {
 	virtual void deserialize(MsgMap &msp) = 0;
 };
 
-/**
- * Converts std::array<char, N> to std::string.
- *
- * Array treated as null-terminated string up to _N chars.
- */
-template<size_t _N>
-std::string to_string(const std::array<char, _N> &a)
-{
-	return std::string(a.data(), strnlen(a.data(), a.size()));
-}
-
-/**
- * Convert std::array to comma separated string
- */
-template<typename _T, size_t _N>
-std::string to_string(const std::array<_T, _N> &a)
-{
-	std::stringstream ss;
-	bool first = true;
-
-	for (auto const &v : a) {
-		if (first) {
-			first = false;
-		} else {
-			ss << ", ";
-		}
-
-		// +v treated as 0+v, it's safe for all types,
-		// but force int8_t/uint8_t to be print as number.
-		ss << +v;
-	}
-
-	return ss.str();
-}
-
-/**
- * Set std::string value to std::array<char, N> (may be not null-terminated)
- *
- * @param[out] a
- * @param[in]  s
- */
-template<size_t _N>
-void set_string(std::array<char, _N> &a, const std::string &s)
-{
-	strncpy(a.data(), s.c_str(), a.size());
-}
-
-/**
- * Set std::string value to std::array<char, N> (always null-terminated)
- *
- * @param[out] a
- * @param[in]  s
- */
-template<size_t _N>
-void set_string_z(std::array<char, _N> &a, const std::string &s)
-{
-	strncpy(a.data(), s.c_str(), a.size() - 1);
-	a[a.size() - 1] = '\0';
-}
 
 } // namespace mavlink
